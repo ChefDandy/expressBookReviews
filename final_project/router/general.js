@@ -3,7 +3,14 @@ let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
 const public_users = express.Router();
-
+const axios = require('axios');
+const getBooks = async () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(books); // 'books' is still coming from the local booksdb.js
+      }, 1000); // Simulating a 1-second delay
+    });
+  };
 // Register a new user
 public_users.post("/register", (req, res) => {
   const { username, password } = req.body;
@@ -23,9 +30,14 @@ public_users.post("/register", (req, res) => {
 });
 
 // Get the book list available in the shop
-public_users.get('/', (req, res) => {
-  return res.status(200).json(books);
-});
+public_users.get('/', async (req, res) => {
+    try {
+      const bookList = await getBooks();
+      return res.status(200).json(bookList);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch books." });
+    }
+  });
 
 // Get book details based on ISBN
 public_users.get('/isbn/:isbn', (req, res) => {
@@ -74,5 +86,24 @@ public_users.get('/review/:isbn', (req, res) => {
     return res.status(404).json({ message: "No reviews found for this book." });
   }
 });
+
+public_users.delete('/review/:isbn', (req, res) => {
+    const { isbn } = req.params;
+    const username = req.body.username; // Assuming username is passed in the body of the request
+    
+    if (books[isbn]) {
+      const reviews = books[isbn].reviews;
+  
+      if (reviews && reviews[username]) {
+        delete reviews[username];
+        return res.status(200).json({ message: "Review deleted successfully." });
+      } else {
+        return res.status(404).json({ message: "Review not found." });
+      }
+    } else {
+      return res.status(404).json({ message: "Book not found." });
+    }
+  });
+
 
 module.exports.general = public_users;
